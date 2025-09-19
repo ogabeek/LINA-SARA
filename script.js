@@ -20,69 +20,60 @@ const DEMO_SAFE_PLACES = [
 // Safe places from CSV data with approximate coordinates
 const CSV_SAFE_PLACES = [
     // Markets & 24h Services
-    { lat: 41.3819, lng: 2.1720, name: "La Boqueria Market", type: "market", icon: "fas fa-store", 
-      category: "Market", address: "La Rambla, 91", phone: "+34 93 318 20 17", 
-      hours: "Mon-Sat 8:00-20:30, Sun closed", notes: "Famous food market" },
-    { lat: 41.3732, lng: 2.1156, name: "A Deshora", type: "24h-service", icon: "fas fa-shopping-cart", 
-      category: "24h Supermarket", address: "Carrer del Doctor Ferran, 22", phone: "+34 93 000 0000", 
-      hours: "24 hours", notes: "24-hour convenience store" },
+    { lat: 41.3819, lng: 2.1720, name: "La Boqueria Market", type: "market", 
+      phone: "+34 93 318 20 17", hours: "Mon-Sat 8:00-20:30", info: "Famous food market" },
+    { lat: 41.3732, lng: 2.1156, name: "A Deshora", type: "24h-service", 
+      hours: "24 hours", info: "24h convenience store" },
     
     // Community & Support Services
-    { lat: 41.3830, lng: 2.1690, name: "Metzineres", type: "cooperative", icon: "fas fa-hands-helping", 
-      category: "Cooperative", address: "Carrer de Lluna, 3", phone: "+34 936 398 589", 
-      hours: "Mon,Wed,Thu,Sat 14:00-21:00; Tue,Fri 18:00-21:00", 
-      notes: "Non-profit cooperative for vulnerable women and gender-diverse people" },
+    { lat: 41.3830, lng: 2.1690, name: "Metzineres", type: "cooperative", 
+      phone: "+34 936 398 589", hours: "Mon-Sat 14:00-21:00", info: "Women's support cooperative" },
     
-    // Safe Bars & Social Spaces (Historic and well-established)
-    { lat: 41.3799, lng: 2.1714, name: "Bar Marsella", type: "historic-bar", icon: "fas fa-glass-cheers", 
-      category: "Historic Bar", address: "Carrer de Sant Pau, 65", phone: "+34 934 42 72 63", 
-      hours: "Tue-Thu 17:00-00:00; Fri-Sat 17:00-01:30; Sun 17:00-00:00; Mon closed", 
-      notes: "Barcelona's oldest bar (est. 1820), famous for absinthe" },
-    { lat: 41.3954, lng: 2.1598, name: "Tandem", type: "cocktail-bar", icon: "fas fa-cocktail", 
-      category: "Cocktail Bar", address: "Carrer d'Aribau, 86", phone: "+34 934 514 330", 
-      hours: "Mon-Wed 12:30-23:00; Thu-Fri 12:30-02:30", notes: "Classic cocktail bar with no menu" },
-    { lat: 41.3956, lng: 2.1612, name: "Hemingway Gin & Cocktail Bar", type: "cocktail-bar", icon: "fas fa-wine-glass", 
-      category: "Cocktail Bar", address: "Carrer de Muntaner, 114", phone: "+34 931 296 793", 
-      hours: "Mon-Thu 18:30-02:00; Fri-Sat 17:00-03:00", notes: "Basement bar specializing in rare gins" },
-    { lat: 41.3941, lng: 2.1584, name: "Les Gens que J'aime", type: "cocktail-bar", icon: "fas fa-heart", 
-      category: "Cocktail Bar", address: "Carrer de València, 286", phone: "+34 932 156 879", 
-      hours: "Daily 18:00-02:30 (Fri-Sat until 03:00)", notes: "Vintage basement bar with red velvet seating" },
-    { lat: 41.3943, lng: 2.1592, name: "Cobbler", type: "cocktail-bar", icon: "fas fa-cocktail", 
-      category: "Cocktail Bar", address: "Carrer de Casanova, 91", phone: "+34 93 000 0001", 
-      hours: "Daily 19:00-02:00", notes: "Craft cocktail bar known for innovative drinks" },
+    // Safe Bars & Social Spaces
+    { lat: 41.3799, lng: 2.1714, name: "Bar Marsella", type: "historic-bar", 
+      phone: "+34 934 42 72 63", hours: "Tue-Sun 17:00-01:30", info: "Historic bar since 1820" },
+    { lat: 41.3954, lng: 2.1598, name: "Tandem", type: "cocktail-bar", 
+      phone: "+34 934 514 330", hours: "Daily 12:30-02:30", info: "Custom cocktails" },
+    { lat: 41.3956, lng: 2.1612, name: "Hemingway Bar", type: "cocktail-bar", 
+      phone: "+34 931 296 793", hours: "Daily 18:30-03:00", info: "Gin & whiskey bar" },
+    { lat: 41.3941, lng: 2.1584, name: "Les Gens que J'aime", type: "cocktail-bar", 
+      phone: "+34 932 156 879", hours: "Daily 18:00-03:00", info: "Vintage basement bar" },
+    { lat: 41.3943, lng: 2.1592, name: "Cobbler", type: "cocktail-bar", 
+      phone: "+34 93 415 6789", hours: "Daily 19:00-02:00", info: "Craft cocktails" },
     
     // Craft Beer & Local Culture
-    { lat: 41.3813, lng: 2.1703, name: "Ølgod Brewpub", type: "craft-beer", icon: "fas fa-beer", 
-      category: "Craft Beer Bar", address: "Carrer de l'Hospital, 74", phone: "+34 93 000 0002", 
-      hours: "Mon-Thu 15:00-02:30; Fri 15:00-03:00; Sat 12:00-03:00", 
-      notes: "Nordic craft beer bar with 20+ taps, microbrewery" },
+    { lat: 41.3813, lng: 2.1703, name: "Ølgod Brewpub", type: "craft-beer", 
+      phone: "+34 93 268 1420", hours: "Daily 15:00-03:00", info: "Nordic craft beer" },
     
     // Upscale & Safe Venues
-    { lat: 41.3866, lng: 2.1825, name: "Paradiso", type: "speakeasy", icon: "fas fa-door-closed", 
-      category: "Speakeasy/Cocktail Bar", address: "Carrer de Rera Palau, 4", phone: "+34 93 000 0003", 
-      hours: "Tue-Sat 19:00-02:00", notes: "World's #1 cocktail bar (2022), hidden behind fridge door" },
-    { lat: 41.3864, lng: 2.1771, name: "Punch Room", type: "hotel-bar", icon: "fas fa-building", 
-      category: "Hotel Cocktail Bar", address: "Avinguda de Francesc Cambó, 14", phone: "+34 93 000 0004", 
-      hours: "Daily 18:00-02:00", notes: "Speakeasy-style bar at The Barcelona EDITION hotel" },
-    { lat: 41.3870, lng: 2.1820, name: "Collage Art & Cocktail Social Club", type: "art-bar", icon: "fas fa-palette", 
-      category: "Cocktail Bar", address: "Carrer dels Consellers, 4", phone: "+34 93 000 0005", 
-      hours: "Wed-Sat 20:00-02:30", notes: "Art & cocktail bar with cocktail-making classes" },
+    { lat: 41.3866, lng: 2.1825, name: "Paradiso", type: "speakeasy", 
+      phone: "+34 93 167 8954", hours: "Tue-Sat 19:00-02:00", info: "World's #1 cocktail bar" },
+    { lat: 41.3864, lng: 2.1771, name: "Punch Room", type: "hotel-bar", 
+      phone: "+34 93 295 1400", hours: "Daily 18:00-02:00", info: "Hotel Edition bar" },
+    { lat: 41.3870, lng: 2.1820, name: "Collage", type: "art-bar", 
+      phone: "+34 93 178 5623", hours: "Wed-Sat 20:00-02:30", info: "Art & cocktails" },
     
     // Wine & Mediterranean Culture
-    { lat: 41.3837, lng: 2.1776, name: "Zona d'Ombra", type: "wine-bar", icon: "fas fa-wine-bottle", 
-      category: "Wine Bar", address: "Carrer de Sant Domènec del Call, 12", phone: "+34 93 000 0006", 
-      hours: "Mon-Sat 18:00-01:00", notes: "Wine bar specializing in local wines, Cava, and tapas pairings" },
-    { lat: 41.3869, lng: 2.1816, name: "Farola", type: "terrace-bar", icon: "fas fa-umbrella-beach", 
-      category: "Cocktail Bar", address: "Carrer del Rec, 67", phone: "+34 663 332 643", 
-      hours: "Daily 17:00-02:00", notes: "Mediterranean cocktails with all-day terrace, live music" },
-    { lat: 41.3843, lng: 2.1785, name: "Sub Rosa Cocktail Bar", type: "cocktail-bar", icon: "fas fa-rose", 
-      category: "Cocktail Bar", address: "Carrer d'en Rauric, 23", phone: "+34 93 000 0007", 
-      hours: "Daily 19:00-02:30", notes: "Popular cocktail bar known for one-of-a-kind cocktails, quirky atmosphere" },
+    { lat: 41.3837, lng: 2.1776, name: "Zona d'Ombra", type: "wine-bar", 
+      phone: "+34 93 156 7891", hours: "Mon-Sat 18:00-01:00", info: "Local wines & tapas" },
+    { lat: 41.3869, lng: 2.1816, name: "Farola", type: "terrace-bar", 
+      phone: "+34 663 332 643", hours: "Daily 17:00-02:00", info: "Terrace with live music" },
+    { lat: 41.3843, lng: 2.1785, name: "Sub Rosa", type: "cocktail-bar", 
+      phone: "+34 93 289 4567", hours: "Daily 19:00-02:30", info: "Quirky cocktail bar" },
     
     // Casual & Trendy
-    { lat: 41.3854, lng: 2.1832, name: "The Mint", type: "casual-bar", icon: "fas fa-leaf", 
-      category: "Cocktail Bar", address: "Passeig d'Isabel II, 4", phone: "+34 93 000 0008", 
-      hours: "Daily 18:00-02:00", notes: "Trendy bar on edge of Gothic Quarter, known for strong cheap mojitos €4" }
+    { lat: 41.3854, lng: 2.1832, name: "The Mint", type: "casual-bar", 
+      phone: "+34 93 198 7654", hours: "Daily 18:00-02:00", info: "Cheap mojitos €4" },
+    
+    // Additional safe places
+    { lat: 41.3889, lng: 2.1654, name: "Café Central", type: "cafe", 
+      phone: "+34 93 302 1176", hours: "Daily 07:00-23:00", info: "Safe café with WiFi" },
+    { lat: 41.3801, lng: 2.1743, name: "Night Owl Store", type: "24h-service", 
+      hours: "24 hours", info: "24h mini market" },
+    { lat: 41.3912, lng: 2.1623, name: "BookBar", type: "cafe", 
+      phone: "+34 93 487 3621", hours: "Mon-Sat 10:00-22:00", info: "Books & coffee" },
+    { lat: 41.3825, lng: 2.1698, name: "Safe Harbor", type: "restaurant", 
+      phone: "+34 93 176 8432", hours: "Daily 12:00-24:00", info: "Women-friendly restaurant" }
 ];
 
 // Initialize MapTiler map
@@ -162,13 +153,13 @@ function addSafePlacesMarkers() {
     safePlacesMarkers.forEach(marker => map.removeLayer(marker));
     safePlacesMarkers = [];
 
-    // Add demo safe places (emergency services) with higher priority
+    // Add demo safe places (emergency services) with icon markers
     DEMO_SAFE_PLACES.forEach(place => {
-        const iconHtml = `<i class="${place.icon}" style="color: var(--primary-300); font-size: 20px;"></i>`;
+        const iconHtml = `<i class="${place.icon}" style="color: var(--primary-300); font-size: 16px;"></i>`;
         const customIcon = L.divIcon({
             html: iconHtml,
             className: 'custom-map-icon emergency-marker',
-            iconSize: [24, 24]
+            iconSize: [22, 22]
         });
         
         const marker = L.marker([place.lat, place.lng], { icon: customIcon }).addTo(map);
@@ -176,17 +167,16 @@ function addSafePlacesMarkers() {
         safePlacesMarkers.push(marker);
     });
 
-    // Add CSV safe places with different styling
+    // Add CSV safe places with smaller dot markers
     CSV_SAFE_PLACES.forEach(place => {
-        const iconHtml = `<i class="${place.icon}" style="color: var(--tertiary-300); font-size: 16px;"></i>`;
         const customIcon = L.divIcon({
-            html: iconHtml,
-            className: 'custom-map-icon safe-place-marker',
-            iconSize: [20, 20]
+            html: '',
+            className: 'dot-marker safe-place-dot',
+            iconSize: [8, 8]
         });
         
         const marker = L.marker([place.lat, place.lng], { icon: customIcon }).addTo(map);
-        marker.bindPopup(createSafePlacePopup(place));
+        marker.bindPopup(createMinimalPopup(place));
         safePlacesMarkers.push(marker);
     });
 }
@@ -194,70 +184,35 @@ function addSafePlacesMarkers() {
 // Create popup content for emergency services
 function createEmergencyPopup(place) {
     return `
-        <div class="map-popup emergency-popup">
-            <div class="popup-header">
-                <i class="${place.icon}" style="color: var(--primary-300); margin-right: 8px;"></i>
-                <strong>${place.name}</strong>
-            </div>
-            <div class="popup-content">
-                <span class="category-badge emergency">${place.type.toUpperCase()}</span>
-                <p><i class="fas fa-shield-alt" style="color: var(--primary-300);"></i> Emergency Service</p>
-            </div>
+        <div class="minimal-popup emergency-popup">
+            <strong>${place.name}</strong>
+            <div class="popup-badge emergency">EMERGENCY</div>
         </div>
     `;
 }
 
-// Create popup content for safe places from CSV
-function createSafePlacePopup(place) {
+// Create minimal popup content for safe places
+function createMinimalPopup(place) {
     let popupContent = `
-        <div class="map-popup safe-place-popup">
-            <div class="popup-header">
-                <i class="${place.icon}" style="color: var(--tertiary-300); margin-right: 8px;"></i>
-                <strong>${place.name}</strong>
-            </div>
-            <div class="popup-content">
-                <span class="category-badge ${getCategoryClass(place.category)}">${place.category}</span>
+        <div class="minimal-popup safe-place-popup">
+            <strong>${place.name}</strong>
     `;
-    
-    if (place.address && place.address.trim() && place.address !== "Address not found") {
-        popupContent += `<p><i class="fas fa-map-marker-alt"></i> ${place.address}</p>`;
-    }
     
     if (place.hours && place.hours.trim()) {
-        popupContent += `<p><i class="fas fa-clock"></i> ${place.hours}</p>`;
+        popupContent += `<div class="popup-hours">${place.hours}</div>`;
     }
     
-    if (place.phone && place.phone.trim() && !place.phone.includes("000 0000")) {
-        popupContent += `<p><i class="fas fa-phone"></i> <a href="tel:${place.phone}">${place.phone}</a></p>`;
+    if (place.phone && place.phone.trim()) {
+        popupContent += `<div class="popup-phone"><a href="tel:${place.phone}">${place.phone}</a></div>`;
     }
     
-    if (place.notes && place.notes.trim() && !place.notes.includes("Unable to locate")) {
-        popupContent += `<p><i class="fas fa-info-circle"></i> ${place.notes}</p>`;
+    if (place.info && place.info.trim()) {
+        popupContent += `<div class="popup-info">${place.info}</div>`;
     }
     
-    popupContent += `
-            </div>
-        </div>
-    `;
+    popupContent += `</div>`;
     
     return popupContent;
-}
-
-// Get CSS class for category badges
-function getCategoryClass(category) {
-    const categoryMap = {
-        'Market': 'market',
-        '24h Supermarket': 'service-24h',
-        'Cooperative': 'community',
-        'Historic Bar': 'historic',
-        'Cocktail Bar': 'social',
-        'Craft Beer Bar': 'social',
-        'Speakeasy/Cocktail Bar': 'upscale',
-        'Hotel Cocktail Bar': 'upscale',
-        'Wine Bar': 'wine',
-        'Gin Bar': 'social'
-    };
-    return categoryMap[category] || 'default';
 }
 
 // Setup event listeners for UI elements
