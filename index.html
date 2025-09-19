@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINA - Women Safety App</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="variables.css">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <!-- Mobile App Container -->
+    <div class="mobile-app">
+        <!-- Full Screen Map -->
+        <div id="map"></div>
+        
+        <!-- Floating Action Buttons -->
+        <div class="floating-actions">
+            <!-- Emergency SOS Button (Large, Primary) -->
+            <button class="fab sos-button" id="sosButton" title="Emergency SOS">
+                <i class="fas fa-exclamation-triangle"></i>
+            </button>
+            
+            <!-- Secondary Action Buttons -->
+            <button class="fab secondary" id="shareLocationBtn" title="Share Location">
+                <i class="fas fa-map-marker-alt"></i>
+            </button>
+            
+            <button class="fab secondary" id="fakeCallBtn" title="Fake Call">
+                <i class="fas fa-phone"></i>
+            </button>
+            
+            <button class="fab secondary" id="makeNoiseBtn" title="Make Noise">
+                <i class="fas fa-volume-up"></i>
+            </button>
+            
+            <button class="fab secondary" id="centerLocationBtn" title="Center on My Location">
+                <i class="fas fa-crosshairs"></i>
+            </button>
+        </div>
+        
+        <!-- Quick Search Bar (Minimized by default) -->
+        <div class="search-bar" id="searchBar">
+            <input type="text" id="destinationInput" placeholder="Where do you want to go?">
+            <button class="search-btn" id="searchBtn">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        
+        <!-- iPhone Status Bar -->
+        <div class="iphone-status-bar">
+            <div class="status-left">
+                <span class="time">9:41</span>
+            </div>
+            <div class="notch"></div>
+            <div class="status-right">
+                <i class="fas fa-signal"></i>
+                <i class="fas fa-wifi"></i>
+                <span class="battery">
+                    <i class="fas fa-battery-three-quarters"></i>
+                </span>
+            </div>
+        </div>
+        
+        <!-- App Header Bar -->
+        <div class="app-header-bar">
+            <div class="app-name">LINA</div>
+            <div class="safety-status">
+                <i class="fas fa-shield-alt"></i>
+                <span>Safe Zone</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Finding safest route...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Leaflet JS for OpenStreetMap -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- App Scripts -->
+    <script src="script.js"></script>
+    <script src="map-script.js"></script>
+    
+    <!-- Google Maps API - Replace YOUR_API_KEY with your real key -->
+    <script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initGoogleMap&libraries=places,geometry">
+    </script>
+    
+    <!-- Fallback for demo without API key -->
+    <script>
+        // Fallback initialization if Google Maps fails to load or key is invalid
+        window.initGoogleMap = function() {
+            // This function is called by the Google Maps script.
+            // If it runs, we know the API loaded. We can then call our main init function.
+            console.log("Google Maps API loaded successfully.");
+            // The actual map initialization is handled by the provider buttons in map-script.js
+        };
+
+        window.setTimeout(() => {
+            if (typeof google === 'undefined' || !google.maps) {
+                console.warn('Google Maps API failed to load. Switching to demo mode.');
+                // If Google Maps isn't loaded after 3 seconds, initialize the demo map.
+                // This handles cases where the API key is invalid or network fails.
+                if (document.querySelector('.provider-option[data-provider="demo"]')) {
+                    initDemoMap();
+                }
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

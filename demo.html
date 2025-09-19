@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINA Safety App - Demo Navigation</title>
+    <style>
+        body {
+            font-family: 'Sofia Sans', sans-serif;
+            background: linear-gradient(135deg, #f6d0d2 0%, #bffdf3 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            color: #ea5b6c;
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 40px;
+        }
+        .nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .nav-link {
+            display: block;
+            padding: 20px;
+            background: linear-gradient(135deg, #5bead9 0%, #49bfb1 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .nav-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(91, 234, 217, 0.3);
+        }
+        .nav-link i {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+        .nav-link.primary {
+            background: linear-gradient(135deg, #ea5b6c 0%, #be3347 100%);
+        }
+        .nav-link.primary:hover {
+            box-shadow: 0 10px 30px rgba(234, 91, 108, 0.3);
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="nav-container">
+        <h1>LINA</h1>
+        <p>Women's Safety App - MVP Demo</p>
+        
+        <div class="nav-links">
+            <a href="index.html" class="nav-link primary">
+                <i class="fas fa-home"></i>
+                Main Dashboard
+            </a>
+            <a href="map.html" class="nav-link">
+                <i class="fas fa-map"></i>
+                Safety Map
+            </a>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #eee; color: #999; font-size: 14px;">
+            <p>🌸 Demo Features:</p>
+            <ul style="text-align: left; font-size: 12px; line-height: 1.6;">
+                <li>SOS Emergency Button (hold 3 seconds)</li>
+                <li>Location Sharing Toggle</li>
+                <li>Fake Call Scheduling</li>
+                <li>Multiple Map Providers</li>
+                <li>Safe Route Planning</li>
+                <li>Emergency Contacts</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

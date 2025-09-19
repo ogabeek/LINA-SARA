@@ -1,0 +1,56 @@
+:root {
+    /* Pink/Red Palette */
+    --primary-100: #FBCFD3;
+    --primary-200: #F797A1;
+    --primary-300: #F5506B;
+    --primary-400: #C8224B;
+    --primary-500: #8A142E;
+    --primary-600: #510817;
+    --primary-700: #2A0208;
+
+    /* Green Palette */
+    --secondary-100: #D9F7E4; /* Added a lighter shade for backgrounds */
+    --secondary-200: #50F588;
+    --secondary-300: #40C96E;
+    --secondary-400: #309E56;
+    --secondary-500: #22753E;
+    --secondary-600: #144F28;
+    --secondary-700: #072C14;
+
+    /* Blue Palette */
+    --tertiary-100: #BBDEFA;
+    --tertiary-200: #50BDF5;
+    --tertiary-300: #3995C3;
+    --tertiary-400: #296F92;
+    --tertiary-500: #194B64;
+    --tertiary-600: #0A2A3A;
+    --tertiary-700: #03131C;
+
+    /* Gray/Brown Palette */
+    --grey-100: #DBD8D9;
+    --grey-200: #B7B0B1;
+    --grey-300: #95898A;
+    --grey-500: #716566;
+    --grey-700: #4C4444;
+    --grey-900: #2A2526;
+    --grey-1000: #131010;
+    
+    --white: #FFFFFF;
+    --black: #000000;
+
+    /* Font */
+    --font-family: 'Sofia Sans', sans-serif;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* Border Radius */
+    --border-radius-small: 8px;
+    --border-radius-medium: 16px;
+    --border-radius-large: 24px;
+    --border-radius-circle: 50%;
+}

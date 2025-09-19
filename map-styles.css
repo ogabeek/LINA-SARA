@@ -1,0 +1,492 @@
+@import url('variables.css');
+
+/* Map Page Specific Styles */
+html, body {
+    height: 100%;
+    overflow: hidden; /* Prevent scrolling on the body */
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.map-header {
+    background: linear-gradient(135deg, var(--primary-300) 0%, var(--primary-400) 100%);
+    color: var(--white);
+    padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.back-button, .location-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.back-button:hover, .location-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.header-title {
+    text-align: center;
+    flex: 1;
+}
+
+.header-title h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin-bottom: 2px;
+}
+
+.header-title p {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* Search Section */
+.search-section {
+    background: var(--grey-900); /* Dark background */
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--grey-700); /* Darker border */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+.map-provider-selection {
+    margin-bottom: var(--spacing-md);
+}
+
+.provider-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--grey-300); /* Lighter label color */
+    margin-bottom: var(--spacing-sm);
+    display: block;
+}
+
+.provider-options {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.provider-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius-small);
+    border: 2px solid var(--grey-700);
+    background: var(--grey-900);
+    color: var(--grey-100);
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.provider-option:hover {
+    border-color: var(--tertiary-300);
+    color: var(--tertiary-200);
+}
+
+.provider-option.active {
+    background: var(--tertiary-500);
+    border-color: var(--tertiary-300);
+    color: var(--white);
+}
+
+.route-planner {
+    max-width: 100%;
+}
+
+.route-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: var(--grey-700); /* Darker input background */
+    border-radius: var(--border-radius-small);
+    padding: var(--spacing-sm);
+    transition: all 0.3s ease;
+}
+
+.input-group:focus-within {
+    background: var(--grey-600);
+    box-shadow: 0 0 0 2px var(--tertiary-300);
+}
+
+.input-group i {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.start-point { color: var(--secondary-300); }
+.end-point { color: var(--primary-300); }
+
+.input-group input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: var(--font-family);
+    font-size: 16px;
+    color: var(--grey-100); /* Light input text */
+    outline: none;
+}
+
+.input-group input::placeholder {
+    color: var(--grey-500);
+}
+
+.route-options {
+    display: flex;
+    gap: var(--spacing-sm);
+    overflow-x: auto;
+    padding: 2px;
+}
+
+.route-type {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: 20px;
+    border: 2px solid var(--grey-700);
+    background: var(--grey-900);
+    color: var(--grey-300);
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.route-type:hover {
+    border-color: var(--secondary-300);
+    color: var(--secondary-200);
+    transform: translateY(-1px);
+}
+
+.route-type.active {
+    background: var(--secondary-400);
+    border-color: var(--secondary-300);
+    color: var(--white);
+}
+
+.route-type i {
+    font-size: 12px;
+}
+
+/* Map Container */
+.map-container {
+    position: relative;
+    flex-grow: 1;
+    background: var(--grey-1000); /* Very dark background for the map area */
+    overflow: hidden;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+/* Map Controls */
+.map-controls {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    z-index: 200;
+}
+
+.map-control {
+    width: 45px;
+    height: 45px;
+    border-radius: var(--border-radius-small);
+    background: var(--grey-700);
+    border: 1px solid var(--grey-500);
+    color: var(--grey-100);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.map-control:hover {
+    background: var(--tertiary-400);
+    color: white;
+    transform: scale(1.05);
+}
+
+.map-control.active {
+    background: var(--tertiary-300);
+    color: white;
+}
+
+/* Route Information Panel */
+.route-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--grey-900);
+    border-radius: var(--border-radius-large) var(--border-radius-large) 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+    z-index: 300;
+    max-height: 60%;
+    overflow-y: auto;
+}
+
+.route-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--grey-700);
+}
+
+.route-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--grey-100);
+}
+
+.close-route-info {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: var(--grey-500);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.route-details {
+    padding: var(--spacing-md);
+}
+
+.route-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.stat i {
+    font-size: 20px;
+    color: var(--tertiary-300);
+}
+
+.stat.safety-high i {
+    color: var(--secondary-300);
+}
+
+.stat span {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--grey-100);
+}
+
+.route-features {
+    margin-bottom: var(--spacing-md);
+}
+
+.feature {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) 0;
+    color: var(--grey-300);
+    font-size: 14px;
+}
+
+.feature i {
+    color: var(--secondary-300);
+    width: 16px;
+}
+
+.route-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.route-actions .btn {
+    flex: 1;
+}
+
+/* Safety Legend */
+.safety-legend {
+    position: absolute;
+    bottom: var(--spacing-md);
+    left: var(--spacing-md);
+    background: rgba(30, 30, 30, 0.8); /* Dark, translucent background */
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius-small);
+    padding: var(--spacing-sm);
+    font-size: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 200;
+    color: var(--grey-100);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: 4px;
+}
+
+.legend-item:last-child {
+    margin-bottom: 0;
+}
+
+.legend-color {
+    width: 16px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+.legend-color.safety-high { background: var(--secondary-300); }
+.legend-color.safety-medium { background: #f39c12; } /* Keep yellow for medium */
+.legend-color.safety-low { background: var(--primary-300); }
+
+/* Floating SOS Button */
+.floating-sos {
+    position: fixed;
+    bottom: 100px;
+    right: var(--spacing-md);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-300) 0%, var(--primary-400) 100%);
+    border: 4px solid var(--grey-900); /* Border to match the dark app background */
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 25px rgba(200, 34, 75, 0.4);
+    z-index: 400;
+}
+
+.floating-sos:hover {
+    transform: scale(1.1);
+    box-shadow: 0 12px 35px rgba(200, 34, 75, 0.6);
+}
+
+.floating-sos:active {
+    transform: scale(0.95);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Darker loading overlay */
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-overlay.show {
+    display: flex;
+}
+
+.loading-content {
+    text-align: center;
+    color: var(--grey-100);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--grey-700);
+    border-top: 4px solid var(--tertiary-200);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto var(--spacing-md);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Custom map icons */
+.custom-map-icon {
+    text-align: center;
+}
+.custom-map-icon i {
+    text-shadow: 0 0 5px rgba(0,0,0,0.7); /* Stronger shadow for dark mode */
+}
+
+/* Responsive Design */
+@media (max-width: 414px) {
+    .map-container {
+        height: calc(100vh - 260px);
+    }
+    
+    .route-stats {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        text-align: left;
+    }
+    
+    .stat {
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+    
+    .route-actions {
+        flex-direction: column;
+    }
+    
+    .floating-sos {
+        bottom: 90px;
+        right: var(--spacing-sm);
+        width: 50px;
+        height: 50px;
+        font-size: 16px;
+    }
+}
