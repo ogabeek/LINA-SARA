@@ -2,6 +2,8 @@
 let map;
 let currentLocationMarker;
 let safePlacesMarkers = [];
+let currentRoute = null;
+let destinationMarker = null;
 const MAPTILER_API_KEY = 'i97DCXlqmokwCV6scEFF';
 
 // Barcelona coordinates for demo
@@ -103,6 +105,14 @@ function initMap() {
         getCurrentLocation();
         addSafePlacesMarkers();
         setupMapEventListeners();
+        
+        // Force create location marker after a short delay to ensure map is ready
+        setTimeout(() => {
+            if (!currentLocationMarker) {
+                console.log('🔄 Force creating location marker...');
+                updateCurrentLocationMarker([BARCELONA_CENTER.lat, BARCELONA_CENTER.lng]);
+            }
+        }, 1000);
 
     } catch (error) {
         console.error('❌ Error initializing MapTiler:', error);
@@ -135,16 +145,35 @@ function getCurrentLocation() {
 
 // Update or create the marker for the user's current location
 function updateCurrentLocationMarker(latlng) {
+    // Remove existing marker if it exists
     if (currentLocationMarker) {
-        currentLocationMarker.setLatLng(latlng);
-    } else {
-        const pulsingIcon = L.divIcon({
-            className: 'pulsing-icon',
-            iconSize: [20, 20]
-        });
-        currentLocationMarker = L.marker(latlng, { icon: pulsingIcon }).addTo(map)
-            .bindPopup("<b>You are here!</b>");
+        map.removeLayer(currentLocationMarker);
     }
+    
+    // Remove any backup DOM indicators
+    const existingIndicator = document.getElementById('backup-location-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+    
+    // Create a stable, fixed green dot icon
+    const greenDotIcon = L.divIcon({
+        className: 'green-location-dot',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        html: '<div class="location-dot-inner"></div>'
+    });
+    
+    // Create a regular marker with the green dot icon
+    currentLocationMarker = L.marker(latlng, {
+        icon: greenDotIcon,
+        zIndexOffset: 1000
+    }).addTo(map);
+    
+    // Add popup
+    currentLocationMarker.bindPopup("<b>📍 You are here!</b>");
+    
+    console.log('✅ Current location marker created (stable dot):', latlng, currentLocationMarker);
 }
 
 // Add markers for predefined safe places
@@ -187,6 +216,9 @@ function createEmergencyPopup(place) {
         <div class="minimal-popup emergency-popup">
             <strong>${place.name}</strong>
             <div class="popup-badge emergency">EMERGENCY</div>
+            <button class="route-button emergency-route" onclick="createRoute(${place.lat}, ${place.lng}, '${place.name}')">
+                🚗 Route Here
+            </button>
         </div>
     `;
 }
@@ -210,7 +242,11 @@ function createMinimalPopup(place) {
         popupContent += `<div class="popup-info">${place.info}</div>`;
     }
     
-    popupContent += `</div>`;
+    popupContent += `
+            <button class="route-button safe-route" onclick="createRoute(${place.lat}, ${place.lng}, '${place.name}')">
+                🚗 Route Here
+            </button>
+        </div>`;
     
     return popupContent;
 }
@@ -304,7 +340,17 @@ function handleCenterLocation() {
         map.setView(currentLocationMarker.getLatLng(), 16);
         showToast('🎯 Location', 'Centered on your location');
     } else {
+        // Force create location marker if it doesn't exist
+        console.log('🔄 No location marker found, creating one...');
         getCurrentLocation();
+        // Also force create at Barcelona center as backup
+        setTimeout(() => {
+            if (!currentLocationMarker) {
+                updateCurrentLocationMarker([BARCELONA_CENTER.lat, BARCELONA_CENTER.lng]);
+                map.setView([BARCELONA_CENTER.lat, BARCELONA_CENTER.lng], 16);
+                showToast('📍 Location', 'Location marker created at Barcelona center');
+            }
+        }, 500);
         showToast('🎯 Location', 'Getting your current location...');
     }
 }
@@ -357,6 +403,300 @@ function goToContacts() {
 function goToSettings() {
     showToast('Navigation', 'Settings page - Coming soon!');
 }
+
+// ==================== ROUTING FUNCTIONALITY ====================
+
+// Main route creation function
+async function createRoute(destLat, destLng, placeName) {
+    console.log(`🚗 Creating route to ${placeName} (${destLat}, ${destLng})`);
+    
+    if (!currentLocationMarker) {
+        showToast('❌ Location Error', 'Current location not available. Please enable location services.');
+        return;
+    }
+    
+    try {
+        const start = currentLocationMarker.getLatLng();
+        const end = { lat: destLat, lng: destLng };
+        
+        showToast('🗺️ Routing', `Calculating route to ${placeName}...`);
+        
+        // Clear any existing route
+        if (currentRoute) {
+            map.removeLayer(currentRoute);
+        }
+        if (destinationMarker) {
+            map.removeLayer(destinationMarker);
+        }
+
+        // Try different routing services in order
+        let routeSuccess = false;
+        
+        // Method 1: Try MapTiler routing
+        try {
+            routeSuccess = await tryMapTilerRouting(start, end, placeName);
+        } catch (error) {
+            console.log('MapTiler routing failed:', error.message);
+        }
+        
+        // Method 2: Try OpenRouteService as fallback
+        if (!routeSuccess) {
+            try {
+                routeSuccess = await tryOpenRouteService(start, end, placeName);
+            } catch (error) {
+                console.log('OpenRouteService routing failed:', error.message);
+            }
+        }
+        
+        // Method 3: Simple straight-line route as final fallback
+        if (!routeSuccess) {
+            routeSuccess = createStraightLineRoute(start, end, placeName);
+        }
+        
+        if (routeSuccess) {
+            // Show clear route button if not already visible
+            showClearRouteButton();
+        }
+        
+    } catch (error) {
+        console.error('❌ Route creation failed:', error);
+        showToast('❌ Route Error', `Routing failed: ${error.message}`);
+    }
+}
+
+// Try MapTiler routing API for road-based navigation
+async function tryMapTilerRouting(start, end, placeName) {
+    const routeUrl = `https://api.maptiler.com/directions/driving/${start.lng},${start.lat};${end.lng},${end.lat}?key=${MAPTILER_API_KEY}&geometries=geojson&overview=full&steps=true`;
+    console.log('📡 MapTiler API URL:', routeUrl);
+    
+    const response = await fetch(routeUrl);
+    
+    if (!response.ok) {
+        const errorData = await response.text();
+        console.log('MapTiler API Error:', errorData);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('📊 MapTiler response:', data);
+    
+    if (data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        
+        // Handle GeoJSON format geometry
+        let routeCoords;
+        if (route.geometry && route.geometry.coordinates) {
+            // GeoJSON format - coordinates are [lng, lat], need to flip to [lat, lng]
+            routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+        } else if (route.geometry && typeof route.geometry === 'string') {
+            // Polyline encoded format
+            routeCoords = decodePolyline(route.geometry);
+        } else {
+            throw new Error('Invalid geometry format');
+        }
+        
+        // Create route line on map
+        currentRoute = L.polyline(routeCoords, {
+            color: '#50F588',
+            weight: 4,
+            opacity: 0.8,
+            dashArray: '10, 5'
+        }).addTo(map);
+        
+        addDestinationMarker(end, placeName);
+        fitMapToRoute(start, end);
+        
+        const distance = route.distance ? Math.round(route.distance/1000) : 'Unknown';
+        showToast('✅ Route Ready', `${distance}km route via MapTiler`);
+        return true;
+    }
+    return false;
+}
+
+// Try OpenRouteService as fallback
+async function tryOpenRouteService(start, end, placeName) {
+    try {
+        const requestBody = {
+            coordinates: [[start.lng, start.lat], [end.lng, end.lat]]
+        };
+        
+        const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
+            method: 'POST',
+            headers: {
+                'Authorization': '5b3ce3597851110001cf6248d5e3e8ff7b3a42ed1e6e45c2b2dea8e7',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.log('OpenRouteService API Error:', errorData);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('📊 OpenRouteService response:', data);
+        
+        if (data.features && data.features.length > 0) {
+            const route = data.features[0];
+            const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+            
+            // Create route line on map
+            currentRoute = L.polyline(routeCoords, {
+                color: '#50F588',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 5'
+            }).addTo(map);
+            
+            addDestinationMarker(end, placeName);
+            fitMapToRoute(start, end);
+            
+            const distance = route.properties.segments[0].distance;
+            showToast('✅ Route Ready', `${Math.round(distance/1000)}km route via OpenRouteService`);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.log('OpenRouteService failed:', error.message);
+        throw error;
+    }
+}
+
+// Create simple straight-line route as final fallback
+function createStraightLineRoute(start, end, placeName) {
+    console.log('📏 Creating straight-line route');
+    
+    // Create straight line route
+    currentRoute = L.polyline([
+        [start.lat, start.lng],
+        [end.lat, end.lng]
+    ], {
+        color: '#50F588',
+        weight: 4,
+        opacity: 0.6,
+        dashArray: '15, 10'
+    }).addTo(map);
+    
+    addDestinationMarker(end, placeName);
+    fitMapToRoute(start, end);
+    
+    // Calculate approximate distance
+    const distance = calculateDistance(start.lat, start.lng, end.lat, end.lng);
+    showToast('⚠️ Direct Route', `${distance.toFixed(1)}km straight-line route`);
+    return true;
+}
+
+// Helper functions for routing
+function addDestinationMarker(end, placeName) {
+    destinationMarker = L.marker([end.lat, end.lng], {
+        icon: L.divIcon({
+            html: '<i class="fas fa-map-marker-alt" style="color: #50F588; font-size: 20px;"></i>',
+            className: 'custom-map-icon destination-marker',
+            iconSize: [24, 24]
+        })
+    }).addTo(map).bindPopup(`📍 ${placeName}`);
+}
+
+function fitMapToRoute(start, end) {
+    const bounds = L.latLngBounds([
+        [start.lat, start.lng],
+        [end.lat, end.lng]
+    ]);
+    map.fitBounds(bounds, { padding: [50, 50] });
+}
+
+function showClearRouteButton() {
+    // Create or show clear route button
+    let clearBtn = document.getElementById('clearRouteBtn');
+    if (!clearBtn) {
+        clearBtn = document.createElement('button');
+        clearBtn.id = 'clearRouteBtn';
+        clearBtn.innerHTML = '❌ Clear Route';
+        clearBtn.style.cssText = `
+            position: fixed;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            z-index: 1000;
+            cursor: pointer;
+        `;
+        clearBtn.onclick = clearRoute;
+        document.body.appendChild(clearBtn);
+    }
+    clearBtn.style.display = 'block';
+}
+
+function clearRoute() {
+    if (currentRoute) {
+        map.removeLayer(currentRoute);
+        currentRoute = null;
+    }
+    if (destinationMarker) {
+        map.removeLayer(destinationMarker);
+        destinationMarker = null;
+    }
+    
+    const clearBtn = document.getElementById('clearRouteBtn');
+    if (clearBtn) {
+        clearBtn.style.display = 'none';
+    }
+    
+    showToast('🗺️ Route Cleared', 'Route has been removed from the map');
+}
+
+// Distance calculation function
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// Decode polyline geometry (simplified version)
+function decodePolyline(encoded) {
+    const coords = [];
+    let index = 0, lat = 0, lng = 0;
+    
+    while (index < encoded.length) {
+        let b, shift = 0, result = 0;
+        do {
+            b = encoded.charCodeAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lat += dlat;
+        
+        shift = 0;
+        result = 0;
+        do {
+            b = encoded.charCodeAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lng += dlng;
+        
+        coords.push([lat / 1e5, lng / 1e5]);
+    }
+    
+    return coords;
+}
+
+// ==================== END ROUTING FUNCTIONALITY ====================
 
 // Utility functions
 function showLoadingOverlay(show) {

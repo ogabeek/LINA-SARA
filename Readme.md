@@ -32,13 +32,6 @@ A women's safety mobile application designed to provide secure navigation, emerg
 - Craft Beer & Wine Venues
 - Hotel Bars & Upscale Locations
 
-## 🎨 Design
-
-- **Mobile-First**: iPhone-style interface (375×812px)
-- **Dark Mode**: Eye-friendly dark theme throughout
-- **Minimalistic**: Clean, distraction-free design
-- **Accessibility**: High contrast colors and clear typography
-
 ## 🛠️ Technology Stack
 
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
@@ -100,29 +93,6 @@ LINA-SARA/
 - **CSV Integration**: Safe places imported from structured data
 - **Smart Popups**: Context-aware information display
 - **Category System**: Color-coded venue classification
-
-## 🎨 Color Palette
-
-### Primary (Pink/Red)
-- `#FBCFD3` to `#2A0208` - Emergency & SOS functions
-
-### Secondary (Green) 
-- `#50F588` to `#021507` - Success states & confirmations
-
-### Tertiary (Blue)
-- `#BBDEFA` to `#03131C` - Safe places & navigation
-
-### Quaternary (Gray/Brown)
-- `#DBD8D9` to `#131010` - UI backgrounds & text
-
-## 📍 Location Data
-
-The app includes curated safe places across Barcelona neighborhoods:
-- **Ciutat Vella**: Historic center with emergency services
-- **Eixample**: Upscale venues and established businesses  
-- **El Raval**: Community spaces and cultural venues
-- **El Born**: Trendy bars and social spaces
-- **Gothic Quarter**: Historic venues and tourist-safe areas
 
 ## 🔒 Privacy & Security
 
