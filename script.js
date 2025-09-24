@@ -11,6 +11,15 @@ const GRAPHHOPPER_API_KEY = 'dc967afc-f73b-45ba-b388-31b5f1244390';
 const DEBUG_MODE = true;
 let debugLog;
 
+// Global alarm state
+let alarmState = {
+    isPlaying: false,
+    audioContext: null,
+    currentOscillators: [],
+    flashInterval: null,
+    emergencyOverlay: null
+};
+
 function initDebug() {
     if (!DEBUG_MODE) return;
     const debugPanel = document.getElementById('debugPanel');
@@ -382,15 +391,185 @@ function setupMapEventListeners() {
 
 // Action handlers for floating buttons
 function handleEmergencySOS() {
-    showToast('🚨 EMERGENCY SOS', 'Emergency services contacted! Stay safe.');
-    // Add visual feedback
+    logDebug('--- EMERGENCY SOS ACTIVATED ---', 'title');
+    
+    // Show immediate visual feedback
     const sosButton = document.getElementById('sosButton');
     sosButton.style.animation = 'none';
     sosButton.style.background = 'linear-gradient(135deg, #8A142E 0%, #510817 100%)';
+    
+    // Try to determine the appropriate emergency number based on location
+    const emergencyNumbers = {
+        // European emergency number (works in EU, UK, some others)
+        eu: '112',
+        // North American emergency number
+        us: '911',
+        // International emergency numbers
+        fallback: '112' // 112 works in most countries
+    };
+    
+    // Try to get user's location to determine appropriate emergency number
+    let emergencyNumber = emergencyNumbers.fallback; // Default to 112
+    
+    // Check if we have a current location to determine likely emergency number
+    if (currentLocationMarker) {
+        const position = currentLocationMarker.getLatLng();
+        const lat = position.lat;
+        const lng = position.lng;
+        
+        // Simple geographic detection (North America vs Europe/Rest of World)
+        if (lat >= 25 && lat <= 72 && lng >= -180 && lng <= -50) {
+            // Likely North America
+            emergencyNumber = emergencyNumbers.us;
+            logDebug('Location detected: North America - using 911', 'info');
+        } else {
+            // Europe/International - use 112
+            emergencyNumber = emergencyNumbers.eu;
+            logDebug('Location detected: International - using 112', 'info');
+        }
+    }
+    
+    // Create emergency call URL
+    const emergencyCallUrl = `tel:${emergencyNumber}`;
+    
+    // Show confirmation dialog before calling emergency services
+    const confirmCall = confirm(`🚨 EMERGENCY SOS ACTIVATED 🚨
+
+This will call emergency services: ${emergencyNumber}
+
+Are you sure you want to call emergency services?
+
+• Click OK to call ${emergencyNumber}
+• Click Cancel to abort
+
+Emergency services will be contacted immediately if you proceed.`);
+    
+    if (confirmCall) {
+        logDebug(`Initiating emergency call to ${emergencyNumber}`, 'title');
+        showToast('📞 CALLING EMERGENCY', `Calling ${emergencyNumber} - Emergency services contacted!`);
+        
+        try {
+            // Try to initiate emergency call
+            window.open(emergencyCallUrl, '_self');
+            
+            // Also try opening in a new window as backup
+            setTimeout(() => {
+                window.open(emergencyCallUrl, '_blank');
+            }, 100);
+            
+            logDebug(`Emergency call initiated to ${emergencyNumber}`, 'success');
+            
+        } catch (error) {
+            logDebug('Direct emergency calling failed, showing manual instructions', 'warning');
+            showEmergencyCallInstructions(emergencyNumber);
+        }
+        
+        // Keep button activated to show emergency state
+        sosButton.style.background = 'linear-gradient(135deg, #8A142E 0%, #510817 100%)';
+        
+    } else {
+        logDebug('Emergency call cancelled by user', 'info');
+        showToast('❌ EMERGENCY CANCELLED', 'Emergency call cancelled');
+        
+        // Restore normal button appearance
+        setTimeout(() => {
+            sosButton.style.background = 'linear-gradient(135deg, var(--primary-300) 0%, var(--primary-400) 100%)';
+            sosButton.style.animation = 'pulse-sos 2s infinite';
+        }, 1000);
+    }
+}
+
+function showEmergencyCallInstructions(emergencyNumber) {
+    // Create emergency instructions modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 0, 0, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        font-family: 'Sofia Sans', sans-serif;
+        animation: emergency-flash 0.5s infinite alternate;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        border: 5px solid red;
+        border-radius: 15px;
+        padding: 30px;
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 0 50px rgba(255, 0, 0, 0.8);
+    `;
+    
+    modalContent.innerHTML = `
+        <h2 style="color: red; font-size: 32px; margin: 0 0 20px 0; animation: pulse 1s infinite;">
+            🚨 EMERGENCY 🚨
+        </h2>
+        
+        <div style="font-size: 48px; font-weight: bold; color: red; margin: 20px 0;">
+            CALL ${emergencyNumber}
+        </div>
+        
+        <p style="font-size: 18px; color: black; margin: 20px 0;">
+            <strong>Manual dialing required:</strong><br>
+            1. Open your phone app<br>
+            2. Dial <strong>${emergencyNumber}</strong><br>
+            3. Press call button
+        </p>
+        
+        <div style="margin: 20px 0;">
+            <a href="tel:${emergencyNumber}" style="
+                display: inline-block;
+                background: red;
+                color: white;
+                padding: 15px 30px;
+                text-decoration: none;
+                border-radius: 10px;
+                font-size: 20px;
+                font-weight: bold;
+                margin: 10px;
+            ">📞 TRY CALLING ${emergencyNumber}</a>
+        </div>
+        
+        <button onclick="document.body.removeChild(this.closest('.emergency-modal'))" style="
+            background: #666;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        ">Close Instructions</button>
+    `;
+    
+    modal.className = 'emergency-modal';
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Add emergency flash animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes emergency-flash {
+            0% { background: rgba(255, 0, 0, 0.95); }
+            100% { background: rgba(255, 100, 100, 0.95); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Auto-remove after 30 seconds
     setTimeout(() => {
-        sosButton.style.background = 'linear-gradient(135deg, var(--primary-300) 0%, var(--primary-400) 100%)';
-        sosButton.style.animation = 'pulse-sos 2s infinite';
-    }, 2000);
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal);
+        }
+    }, 30000);
 }
 
 function handleShareLocation() {
@@ -475,20 +654,32 @@ function showLocationSharingOptions(lat, lng) {
     // Google Maps link
     const googleMapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
     
-    // Create emergency message
+    // Create emergency message with live location instructions
     const emergencyMessage = `🚨 EMERGENCY LOCATION SHARE 🚨
 I'm sharing my current location for safety reasons.
 Please check on me!
 
-📍 My Location:
+📍 My Current Location:
 https://maps.google.com/?q=${lat},${lng}
 
 Coordinates: ${lat}, ${lng}
-Shared at: ${new Date().toLocaleString()}`;
+Shared at: ${new Date().toLocaleString()}
+
+⚠️ LIVE LOCATION SETUP:
+• Once in Telegram, tap the attachment icon (📎)
+• Select "Location" 
+• Choose "Share Live Location"
+• Set duration (15min-8hrs) and tap "Send"
+• This will show my real-time location to emergency contacts
+
+Please monitor my location and contact authorities if needed!`;
     
     // WhatsApp URLs
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(emergencyMessage)}`;
     const whatsappWebUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(emergencyMessage)}`;
+    
+    // Telegram URL
+    const telegramUrl = `https://t.me/share/url?text=${encodeURIComponent(emergencyMessage)}`;
     
     modalContent.innerHTML = `
         <h3 style="color: var(--white); margin-bottom: var(--spacing-lg);">
@@ -513,11 +704,11 @@ Shared at: ${new Date().toLocaleString()}`;
                 gap: 8px;
             ">
                 <i class="fab fa-whatsapp"></i>
-                Share via WhatsApp
+                Share Emergency + Start Live Location
             </button>
             
-            <button id="shareWhatsAppWeb" style="
-                background: #128C7E;
+            <button id="shareTelegram" style="
+                background: #0088cc;
                 color: white;
                 border: none;
                 padding: 12px 20px;
@@ -529,8 +720,8 @@ Shared at: ${new Date().toLocaleString()}`;
                 justify-content: center;
                 gap: 8px;
             ">
-                <i class="fab fa-whatsapp"></i>
-                Share via WhatsApp Web
+                <i class="fab fa-telegram"></i>
+                Share Emergency + Start Live Location
             </button>
             
             <button id="copyLocation" style="
@@ -585,17 +776,32 @@ Shared at: ${new Date().toLocaleString()}`;
     
     // Add event listeners
     document.getElementById('shareWhatsApp').onclick = () => {
-        logDebug('Opening WhatsApp mobile app...', 'info');
-        window.open(whatsappUrl, '_blank');
+        logDebug('Starting WhatsApp emergency sharing with live location instructions...', 'info');
+        
+        // Create WhatsApp-specific message with live location instructions
+        const whatsappMessage = emergencyMessage.replace(
+            '⚠️ LIVE LOCATION SETUP:\n• Once in Telegram, tap the attachment icon (📎)\n• Select "Location" \n• Choose "Share Live Location"',
+            '⚠️ LIVE LOCATION SETUP:\n• Once in WhatsApp, tap the attachment icon (+)\n• Select "Location"\n• Choose "Share Live Location"'
+        );
+        
+        const whatsappUrlWithInstructions = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+        window.open(whatsappUrlWithInstructions, '_blank');
         document.body.removeChild(modal);
-        showToast('📱 WhatsApp', 'Opening WhatsApp with your location...');
+        showToast('📱 Emergency + Live Location', 'Opening WhatsApp with emergency message and live location setup instructions...');
     };
     
-    document.getElementById('shareWhatsAppWeb').onclick = () => {
-        logDebug('Opening WhatsApp Web...', 'info');
-        window.open(whatsappWebUrl, '_blank');
+    document.getElementById('shareTelegram').onclick = () => {
+        logDebug('Starting Telegram emergency sharing with live location instructions...', 'info');
+        
+        // Open Telegram with the enhanced emergency message
+        window.open(telegramUrl, '_blank');
         document.body.removeChild(modal);
-        showToast('� WhatsApp Web', 'Opening WhatsApp Web with your location...');
+        
+        // Show comprehensive instructions toast
+        showToast('💙 Emergency + Live Location', 'Opening Telegram with emergency message and live location setup instructions...');
+        
+        // Additional helpful information in debug
+        logDebug('Emergency message includes live location setup instructions', 'info');
     };
     
     document.getElementById('copyLocation').onclick = () => {
@@ -631,16 +837,536 @@ Shared at: ${new Date().toLocaleString()}`;
 }
 
 function handleFakeCall() {
-    showToast('📞 Fake Call', 'Incoming call from "Mom" in 10 seconds...');
+    logDebug('--- Fake Call Activated ---', 'title');
+    showToast('📞 Fake Call', 'Incoming call from "Dad" in 3 seconds...');
+    
     setTimeout(() => {
-        showToast('📞 Incoming Call', 'Mom is calling... (This is a fake call for safety)');
-    }, 10000);
+        showFakeCallInterface();
+    }, 3000);
 }
 
+function showFakeCallInterface() {
+    // Create realistic fake call overlay
+    const callOverlay = document.createElement('div');
+    callOverlay.id = 'fakeCallOverlay';
+    callOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        z-index: 999999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 60px 20px 40px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: white;
+        animation: slideDown 0.3s ease-out;
+    `;
+    
+    // Create call content
+    callOverlay.innerHTML = `
+        <style>
+            @keyframes slideDown {
+                from { transform: translateY(-100%); }
+                to { transform: translateY(0); }
+            }
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-2px); }
+                75% { transform: translateX(2px); }
+            }
+            .call-animation { animation: shake 0.5s infinite; }
+        </style>
+        
+        <!-- Status Bar -->
+        <div style="position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 500;">
+            <span>📶 Signal</span>
+            <span>${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            <span>🔋 85%</span>
+        </div>
+        
+        <!-- Call Status -->
+        <div style="text-align: center; margin-top: 40px;">
+            <div style="font-size: 18px; opacity: 0.8; margin-bottom: 20px;">
+                Incoming call
+            </div>
+            
+            <!-- Contact Photo -->
+            <div style="
+                width: 200px;
+                height: 200px;
+                border-radius: 50%;
+                background-image: url('dad.png');
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                margin: 0 auto 30px;
+                animation: pulse 2s infinite;
+                border: 4px solid rgba(255, 255, 255, 0.3);
+            ">
+                �‍💼
+            </div>
+            
+            <!-- Contact Name -->
+            <div style="font-size: 32px; font-weight: 300; margin-bottom: 8px;">
+                Dad
+            </div>
+            
+            <!-- Phone Number -->
+            <div style="font-size: 18px; opacity: 0.6; margin-bottom: 40px;">
+                +1 (555) 987-6543
+            </div>
+            
+            <!-- Call Duration (fake) -->
+            <div id="callTimer" style="font-size: 20px; opacity: 0.8; display: none;">
+                00:00
+            </div>
+        </div>
+        
+        <!-- Call Actions -->
+        <div style="display: flex; justify-content: space-around; align-items: center; width: 100%; max-width: 300px;">
+            <!-- Decline Button -->
+            <button onclick="declineFakeCall()" style="
+                width: 70px;
+                height: 70px;
+                border-radius: 50%;
+                background: #ff3b30;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 20px rgba(255, 59, 48, 0.4);
+            " class="call-animation">
+                📞
+            </button>
+            
+            <!-- Accept Button -->
+            <button onclick="acceptFakeCall()" style="
+                width: 70px;
+                height: 70px;
+                border-radius: 50%;
+                background: #34c759;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 20px rgba(52, 199, 89, 0.4);
+            " class="call-animation">
+                📞
+            </button>
+        </div>
+        
+        <!-- Additional Actions -->
+        <div style="display: flex; justify-content: space-around; width: 100%; max-width: 200px; opacity: 0.7;">
+            <button onclick="silenceFakeCall()" style="
+                background: none;
+                border: none;
+                color: white;
+                font-size: 14px;
+                cursor: pointer;
+                padding: 10px;
+            ">
+                🔕 Silence
+            </button>
+            
+            <button onclick="messageFakeCall()" style="
+                background: none;
+                border: none;
+                color: white;
+                font-size: 14px;
+                cursor: pointer;
+                padding: 10px;
+            ">
+                💬 Message
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(callOverlay);
+    
+    // Start call sound simulation (vibration)
+    startFakeCallVibration();
+    
+    logDebug('Fake call interface displayed', 'info');
+}
+
+function acceptFakeCall() {
+    logDebug('Fake call accepted', 'info');
+    const overlay = document.getElementById('fakeCallOverlay');
+    if (overlay) {
+        // Show call in progress
+        overlay.innerHTML = `
+            <div style="text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <div style="
+                    width: 150px;
+                    height: 150px;
+                    border-radius: 50%;
+                    background-image: url('dad.png');
+                    background-size: cover;
+                    background-position: center;
+                    background-repeat: no-repeat;
+                    margin-bottom: 30px;
+                    animation: pulse 2s infinite;
+                    border: 3px solid rgba(255, 255, 255, 0.3);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+                ">
+                </div>
+                
+                <div style="font-size: 28px; margin-bottom: 10px;">Dad</div>
+                <div id="callDuration" style="font-size: 20px; opacity: 0.8;">00:05</div>
+                
+                <div style="margin-top: 50px;">
+                    <button onclick="endFakeCall()" style="
+                        width: 70px;
+                        height: 70px;
+                        border-radius: 50%;
+                        background: #ff3b30;
+                        border: none;
+                        color: white;
+                        font-size: 24px;
+                        cursor: pointer;
+                        box-shadow: 0 4px 20px rgba(255, 59, 48, 0.4);
+                    ">
+                        📞
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Simulate call duration
+        let duration = 5;
+        const timer = setInterval(() => {
+            duration++;
+            const minutes = Math.floor(duration / 60);
+            const seconds = duration % 60;
+            const durationElement = document.getElementById('callDuration');
+            if (durationElement) {
+                durationElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                clearInterval(timer);
+            }
+        }, 1000);
+        
+        // Auto-end call after 30 seconds
+        setTimeout(() => {
+            clearInterval(timer);
+            endFakeCall();
+        }, 30000);
+    }
+    
+    // Stop vibration
+    navigator.vibrate && navigator.vibrate(0);
+}
+
+function declineFakeCall() {
+    logDebug('Fake call declined', 'info');
+    endFakeCall();
+}
+
+function silenceFakeCall() {
+    logDebug('Fake call silenced', 'info');
+    navigator.vibrate && navigator.vibrate(0);
+    showToast('🔕 Call Silenced', 'Call continues silently');
+}
+
+function messageFakeCall() {
+    logDebug('Fake call - sending message', 'info');
+    showToast('💬 Message Sent', '"I\'ll call you back later" - sent to Dad');
+    setTimeout(() => endFakeCall(), 2000);
+}
+
+function endFakeCall() {
+    logDebug('Fake call ended', 'info');
+    const overlay = document.getElementById('fakeCallOverlay');
+    if (overlay) {
+        // Add slide up animation
+        overlay.style.animation = 'slideUp 0.3s ease-in forwards';
+        overlay.style.setProperty('--slideUp', `
+            @keyframes slideUp {
+                from { transform: translateY(0); }
+                to { transform: translateY(-100%); }
+            }
+        `);
+        
+        setTimeout(() => {
+            if (document.body.contains(overlay)) {
+                document.body.removeChild(overlay);
+            }
+        }, 300);
+    }
+    
+    // Stop vibration
+    navigator.vibrate && navigator.vibrate(0);
+    
+    showToast('📞 Call Ended', 'Fake call session completed');
+}
+
+function startFakeCallVibration() {
+    // Simulate phone vibration pattern
+    const vibratePattern = [500, 200, 500, 200, 500];
+    
+    function repeatVibration() {
+        if (document.getElementById('fakeCallOverlay')) {
+            navigator.vibrate && navigator.vibrate(vibratePattern);
+            setTimeout(repeatVibration, 2000);
+        }
+    }
+    
+    repeatVibration();
+}
+
+// Make functions globally available
+window.acceptFakeCall = acceptFakeCall;
+window.declineFakeCall = declineFakeCall;
+window.silenceFakeCall = silenceFakeCall;
+window.messageFakeCall = messageFakeCall;
+window.endFakeCall = endFakeCall;
+
 function handleMakeNoise() {
-    showToast('🔊 Alarm Activated', 'Making noise to attract attention!');
-    // In a real app, this would play a loud alarm sound
-    navigator.vibrate && navigator.vibrate([200, 100, 200, 100, 200]);
+    logDebug('--- EMERGENCY SOS ALARM ACTIVATED ---', 'title');
+    showToast('� EMERGENCY ALARM', 'LOUD SOS ALARM ACTIVATED - ATTRACTING ATTENTION!');
+    
+    // Intense vibration pattern for emergency
+    navigator.vibrate && navigator.vibrate([300, 100, 300, 100, 300, 100, 300, 100, 300]);
+    
+    // Create powerful emergency alarm
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let isPlaying = false;
+        
+        // Function to create intense emergency siren
+        function createEmergencySiren() {
+            const oscillator1 = audioContext.createOscillator();
+            const oscillator2 = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Mix two oscillators for richer, more alarming sound
+            oscillator1.connect(gainNode);
+            oscillator2.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Maximum volume for emergency
+            gainNode.gain.setValueAtTime(1.0, audioContext.currentTime);
+            
+            // Siren sound: sweeping frequencies
+            oscillator1.type = 'sawtooth'; // Harsh, penetrating sound
+            oscillator2.type = 'square';   // Sharp, cutting sound
+            
+            // Create classic siren sweep
+            const startTime = audioContext.currentTime;
+            const duration = 1.5;
+            
+            // Primary siren frequency sweep (400Hz to 800Hz)
+            oscillator1.frequency.setValueAtTime(400, startTime);
+            oscillator1.frequency.linearRampToValueAtTime(800, startTime + duration / 2);
+            oscillator1.frequency.linearRampToValueAtTime(400, startTime + duration);
+            
+            // Secondary harmonic (higher pitched for more urgency)
+            oscillator2.frequency.setValueAtTime(800, startTime);
+            oscillator2.frequency.linearRampToValueAtTime(1600, startTime + duration / 2);
+            oscillator2.frequency.linearRampToValueAtTime(800, startTime + duration);
+            
+            oscillator1.start(startTime);
+            oscillator2.start(startTime);
+            oscillator1.stop(startTime + duration);
+            oscillator2.stop(startTime + duration);
+            
+            return duration;
+        }
+        
+        // Function to create urgent beep pattern
+        function createUrgentBeeps(frequency, count, beepDuration, pauseDuration) {
+            return new Promise((resolve) => {
+                let beepCount = 0;
+                
+                function playBeep() {
+                    if (beepCount >= count) {
+                        resolve();
+                        return;
+                    }
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                    
+                    // Sharp attack and decay for urgency
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(1.0, audioContext.currentTime + 0.01);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + beepDuration);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + beepDuration);
+                    
+                    beepCount++;
+                    setTimeout(playBeep, (beepDuration + pauseDuration) * 1000);
+                }
+                
+                playBeep();
+            });
+        }
+        
+        // Play intense emergency alarm sequence
+        async function playEmergencyAlarm() {
+            if (isPlaying) return;
+            isPlaying = true;
+            
+            // Phase 1: Continuous siren (6 seconds)
+            for (let i = 0; i < 4; i++) {
+                createEmergencySiren();
+                await new Promise(resolve => setTimeout(resolve, 1600)); // Slight overlap
+            }
+            
+            // Phase 2: Urgent beep pattern (3 seconds)
+            await createUrgentBeeps(1200, 8, 0.2, 0.15); // High frequency urgent beeps
+            
+            // Phase 3: Final siren blast (3 seconds)
+            for (let i = 0; i < 2; i++) {
+                createEmergencySiren();
+                await new Promise(resolve => setTimeout(resolve, 1600));
+            }
+            
+            isPlaying = false;
+            logDebug('Emergency alarm sequence completed - 12 seconds total', 'info');
+        }
+        
+        // Start emergency alarm
+        playEmergencyAlarm();
+        
+    } catch (error) {
+        logDebug('Web Audio not supported, using fallback emergency sounds', 'warning');
+        
+        // Fallback: Intense HTML5 audio sequence
+        try {
+            // Create multiple audio elements for overlapping sounds
+            const emergencyBeep = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUfCz2SzfGchjMIGneD3OSt8CQCDTNJRSoIAAIBAAEBAAEBAAEBAAEBAAEBAAE=');
+            emergencyBeep.volume = 1.0;
+            
+            // Play rapid emergency beeping
+            let beepCount = 0;
+            const playEmergencyBeeps = () => {
+                if (beepCount < 25) { // Many more beeps for emergency
+                    emergencyBeep.currentTime = 0;
+                    emergencyBeep.play().catch(() => {});
+                    beepCount++;
+                    // Faster beeping for urgency
+                    setTimeout(playEmergencyBeeps, beepCount < 15 ? 150 : 100);
+                }
+            };
+            playEmergencyBeeps();
+            
+        } catch (audioError) {
+            logDebug('Audio playback not available, using visual emergency alert', 'error');
+            // Emergency visual alarm
+            emergencyFlashScreen();
+        }
+    }
+    
+    // Intense visual emergency alarm
+    function emergencyFlashScreen() {
+        let flashCount = 0;
+        const originalBg = document.body.style.background;
+        
+        // Create emergency overlay
+        const emergencyOverlay = document.createElement('div');
+        emergencyOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999999;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        `;
+        
+        document.body.appendChild(emergencyOverlay);
+        
+        const flashInterval = setInterval(() => {
+            if (flashCount >= 25) { // More flashes for emergency
+                clearInterval(flashInterval);
+                document.body.removeChild(emergencyOverlay);
+                document.body.style.background = originalBg;
+                return;
+            }
+            
+            if (flashCount % 2 === 0) {
+                emergencyOverlay.style.background = 'rgba(255, 0, 0, 0.9)';
+                emergencyOverlay.innerHTML = '🚨 EMERGENCY 🚨';
+            } else {
+                emergencyOverlay.style.background = 'rgba(255, 255, 0, 0.9)';
+                emergencyOverlay.innerHTML = '⚠️ HELP NEEDED ⚠️';
+            }
+            flashCount++;
+        }, 200);
+    }
+}
+
+function stopEmergencyAlarm() {
+    logDebug('--- EMERGENCY ALARM STOPPED ---', 'title');
+    showToast('🔇 ALARM STOPPED', 'Emergency alarm has been stopped');
+    
+    // Set state to stopped
+    alarmState.isPlaying = false;
+    
+    // Stop all audio oscillators
+    alarmState.currentOscillators.forEach(oscillator => {
+        try {
+            oscillator.stop();
+        } catch (e) {
+            // Oscillator might already be stopped
+        }
+    });
+    alarmState.currentOscillators = [];
+    
+    // Close audio context
+    if (alarmState.audioContext) {
+        try {
+            alarmState.audioContext.close();
+            alarmState.audioContext = null;
+        } catch (e) {
+            // Context might already be closed
+        }
+    }
+    
+    // Stop visual effects
+    if (alarmState.flashInterval) {
+        clearInterval(alarmState.flashInterval);
+        alarmState.flashInterval = null;
+    }
+    
+    // Remove emergency overlay
+    if (alarmState.emergencyOverlay && alarmState.emergencyOverlay.parentNode) {
+        document.body.removeChild(alarmState.emergencyOverlay);
+        alarmState.emergencyOverlay = null;
+    }
+    
+    // Stop vibration
+    navigator.vibrate && navigator.vibrate(0);
 }
 
 function handleCenterLocation() {
