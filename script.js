@@ -5,6 +5,42 @@ let safePlacesMarkers = [];
 let currentRoute = null;
 let destinationMarker = null;
 const MAPTILER_API_KEY = 'i97DCXlqmokwCV6scEFF';
+const GRAPHHOPPER_API_KEY = 'dc967afc-f73b-45ba-b388-31b5f1244390';
+
+// Debugging functionality
+const DEBUG_MODE = true;
+let debugLog;
+
+function initDebug() {
+    if (!DEBUG_MODE) return;
+    const debugPanel = document.getElementById('debugPanel');
+    debugLog = document.getElementById('debugLog');
+    if (debugPanel && debugLog) {
+        console.log('🐛 Debug panel initialized.');
+        logDebug('Debug mode enabled. Waiting for actions...', 'info');
+    } else {
+        console.error('Debug panel elements not found!');
+    }
+}
+
+function logDebug(message, type = 'info') {
+    if (!DEBUG_MODE || !debugLog) return;
+    
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    entry.innerHTML = `<span class="timestamp">${timestamp}</span>: ${message}`;
+    
+    debugLog.appendChild(entry);
+
+    // Keep only the last 10 log entries
+    while (debugLog.children.length > 10) {
+        debugLog.removeChild(debugLog.firstChild);
+    }
+    
+    debugLog.scrollTop = debugLog.scrollHeight; // Auto-scroll to bottom
+}
 
 // Barcelona coordinates for demo
 const BARCELONA_CENTER = { lat: 41.3851, lng: 2.1734 };
@@ -122,24 +158,68 @@ function initMap() {
 
 // Get current location using Geolocation API
 function getCurrentLocation() {
+    logDebug('--- Location Request ---', 'title');
+    logDebug('Requesting user location...', 'info');
+    
     if (navigator.geolocation) {
+        // Show user we're requesting location
+        showToast('📍 Location', 'Requesting your location...');
+        
+        // Request location with high accuracy and timeout
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const userLocation = {
                     lat: position.coords.latitude,
                     lng: position.coords.longitude
                 };
+                
+                logDebug(`Location received: [${userLocation.lat}, ${userLocation.lng}]`, 'success');
+                logDebug(`Accuracy: ${position.coords.accuracy}m`, 'info');
+                
                 updateCurrentLocationMarker([userLocation.lat, userLocation.lng]);
                 map.setView([userLocation.lat, userLocation.lng], 16);
+                
+                showToast('📍 Location Found', `Your location: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`);
             },
             (error) => {
-                console.warn('Location access denied, using default location.');
+                logDebug(`Location error: ${error.message} (Code: ${error.code})`, 'error');
+                
+                let errorMessage = '';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'Location access denied by user';
+                        showToast('❌ Location Denied', 'Please enable location access in your browser settings');
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'Location information unavailable';
+                        showToast('❌ Location Unavailable', 'Your location could not be determined');
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = 'Location request timed out';
+                        showToast('⏰ Location Timeout', 'Location request took too long');
+                        break;
+                    default:
+                        errorMessage = 'Unknown location error';
+                        showToast('❌ Location Error', 'Could not get your location');
+                        break;
+                }
+                
+                console.warn(errorMessage);
+                logDebug('Using default Barcelona location as fallback', 'warning');
                 updateCurrentLocationMarker([BARCELONA_CENTER.lat, BARCELONA_CENTER.lng]);
+                showToast('📍 Default Location', 'Using Barcelona center as default');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
             }
         );
     } else {
+        logDebug('Geolocation not supported by browser', 'error');
         console.error("Geolocation is not supported by this browser.");
         updateCurrentLocationMarker([BARCELONA_CENTER.lat, BARCELONA_CENTER.lng]);
+        showToast('❌ Geolocation Unsupported', 'Your browser does not support location services');
     }
 }
 
@@ -336,32 +416,76 @@ function handleMakeNoise() {
 }
 
 function handleCenterLocation() {
+    logDebug('--- Center Location Clicked ---', 'title');
+    
     if (currentLocationMarker) {
         map.setView(currentLocationMarker.getLatLng(), 16);
         showToast('🎯 Location', 'Centered on your location');
+        logDebug('Centered on existing location marker', 'info');
     } else {
-        // Force create location marker if it doesn't exist
-        console.log('🔄 No location marker found, creating one...');
-        getCurrentLocation();
-        // Also force create at Barcelona center as backup
-        setTimeout(() => {
-            if (!currentLocationMarker) {
-                updateCurrentLocationMarker([BARCELONA_CENTER.lat, BARCELONA_CENTER.lng]);
-                map.setView([BARCELONA_CENTER.lat, BARCELONA_CENTER.lng], 16);
-                showToast('📍 Location', 'Location marker created at Barcelona center');
-            }
-        }, 500);
+        logDebug('No location marker found, requesting fresh location...', 'info');
         showToast('🎯 Location', 'Getting your current location...');
+        
+        // Request fresh location
+        getCurrentLocation();
     }
 }
 
 function handleSearch() {
     const destination = document.getElementById('destinationInput').value.trim();
     if (destination) {
-        showToast('🔍 Search', `Searching for safest route to: ${destination}`);
-        // In a real app, this would search for the destination and plan a route
+        showToast('🔍 Search', `Searching for: ${destination}`);
+        logDebug(`--- Address Search ---`, 'title');
+        logDebug(`Searching for address: ${destination}`, 'info');
+        
+        // Use geocoding to find the location
+        geocodeAddress(destination);
     } else {
         showToast('🔍 Search', 'Please enter a destination');
+    }
+}
+
+// Geocode address using MapTiler Geocoding API
+async function geocodeAddress(address) {
+    try {
+        logDebug('Starting geocoding...', 'info');
+        const geocodeUrl = `https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_API_KEY}&proximity=${BARCELONA_CENTER.lng},${BARCELONA_CENTER.lat}&limit=5`;
+        logDebug(`Geocoding URL: ${geocodeUrl}`, 'info');
+        
+        const response = await fetch(geocodeUrl);
+        
+        if (!response.ok) {
+            const errorData = await response.text();
+            logDebug(`Geocoding API Error: HTTP ${response.status}. ${errorData}`, 'error');
+            throw new Error(`Geocoding failed: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        logDebug(`Geocoding response received with ${data.features?.length || 0} results`, 'info');
+        
+        if (data.features && data.features.length > 0) {
+            const feature = data.features[0]; // Take the first/best result
+            const coordinates = feature.geometry.coordinates; // [lng, lat]
+            const placeName = feature.place_name || feature.text || address;
+            
+            logDebug(`Found location: ${placeName} at [${coordinates[1]}, ${coordinates[0]}]`, 'success');
+            
+            showToast('� Location Found', `Creating route to: ${placeName}`);
+            
+            // Create route to the found location
+            createRoute(coordinates[1], coordinates[0], placeName);
+            
+            // Clear the search input
+            document.getElementById('destinationInput').value = '';
+            
+        } else {
+            logDebug('No results found for address', 'warning');
+            showToast('❌ Not Found', `Could not find: ${address}`);
+        }
+        
+    } catch (error) {
+        logDebug(`Geocoding failed: ${error.message}`, 'error');
+        showToast('❌ Search Error', `Could not search for: ${address}`);
     }
 }
 
@@ -408,10 +532,12 @@ function goToSettings() {
 
 // Main route creation function
 async function createRoute(destLat, destLng, placeName) {
-    console.log(`🚗 Creating route to ${placeName} (${destLat}, ${destLng})`);
+    logDebug(`--- New Route Request ---`, 'title');
+    logDebug(`Creating route to ${placeName} (${destLat}, ${destLng})`, 'info');
     
     if (!currentLocationMarker) {
         showToast('❌ Location Error', 'Current location not available. Please enable location services.');
+        logDebug('No current location marker found.', 'error');
         return;
     }
     
@@ -433,52 +559,88 @@ async function createRoute(destLat, destLng, placeName) {
         let routeSuccess = false;
         
         // Method 1: Try MapTiler routing
+        logDebug('Trying MapTiler routing...', 'info');
         try {
             routeSuccess = await tryMapTilerRouting(start, end, placeName);
+            if (routeSuccess) {
+                logDebug('MapTiler routing succeeded.', 'success');
+            } else {
+                logDebug('MapTiler returned no route.', 'warning');
+            }
         } catch (error) {
-            console.log('MapTiler routing failed:', error.message);
+            logDebug(`MapTiler routing failed: ${error.message}`, 'error');
+            showToast('⚠️ MapTiler Failed', 'Trying fallback service...');
         }
         
         // Method 2: Try OpenRouteService as fallback
         if (!routeSuccess) {
+            logDebug('Trying OpenRouteService routing...', 'info');
             try {
                 routeSuccess = await tryOpenRouteService(start, end, placeName);
+                if (routeSuccess) {
+                    logDebug('OpenRouteService routing succeeded.', 'success');
+                } else {
+                    logDebug('OpenRouteService returned no route.', 'warning');
+                }
             } catch (error) {
-                console.log('OpenRouteService routing failed:', error.message);
+                logDebug(`OpenRouteService routing failed: ${error.message}`, 'error');
+                showToast('⚠️ ORS Failed', 'Trying next fallback...');
             }
         }
         
-        // Method 3: Simple straight-line route as final fallback
+        // Method 3: Try GraphHopper as a new fallback
         if (!routeSuccess) {
+            logDebug('Trying GraphHopper routing...', 'info');
+            try {
+                routeSuccess = await tryGraphHopperRouting(start, end, placeName);
+                if (routeSuccess) {
+                    logDebug('GraphHopper routing succeeded.', 'success');
+                } else {
+                    logDebug('GraphHopper returned no route.', 'warning');
+                }
+            } catch (error) {
+                logDebug(`GraphHopper routing failed: ${error.message}`, 'error');
+                showToast('⚠️ GraphHopper Failed', 'Trying final fallback...');
+            }
+        }
+        
+        // Method 4: Simple straight-line route as final fallback
+        if (!routeSuccess) {
+            logDebug('Creating straight-line route as fallback.', 'warning');
+            showToast('⚠️ Fallback Route', 'Could not find road route. Showing straight line.');
             routeSuccess = createStraightLineRoute(start, end, placeName);
         }
         
         if (routeSuccess) {
-            // Show clear route button if not already visible
-            showClearRouteButton();
+            logDebug('Route successfully displayed on map.', 'success');
+        } else {
+            logDebug('All routing methods failed.', 'error');
+            showToast('❌ Routing Failed', 'Could not calculate any route.');
         }
         
     } catch (error) {
-        console.error('❌ Route creation failed:', error);
+        logDebug(`Unhandled error in createRoute: ${error.message}`, 'error');
         showToast('❌ Route Error', `Routing failed: ${error.message}`);
     }
 }
 
 // Try MapTiler routing API for road-based navigation
 async function tryMapTilerRouting(start, end, placeName) {
-    const routeUrl = `https://api.maptiler.com/directions/driving/${start.lng},${start.lat};${end.lng},${end.lat}?key=${MAPTILER_API_KEY}&geometries=geojson&overview=full&steps=true`;
-    console.log('📡 MapTiler API URL:', routeUrl);
+    // Use the 'walking' profile for pedestrian-focused routing
+    const routeUrl = `https://api.maptiler.com/directions/walking/${start.lng},${start.lat};${end.lng},${end.lat}?key=${MAPTILER_API_KEY}&geometries=geojson&overview=full&steps=true`;
+    logDebug(`MapTiler URL: ${routeUrl}`, 'info');
     
     const response = await fetch(routeUrl);
+    logDebug(`MapTiler response status: ${response.status}`, 'info');
     
     if (!response.ok) {
         const errorData = await response.text();
-        console.log('MapTiler API Error:', errorData);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        logDebug(`MapTiler API Error: HTTP ${response.status}. ${errorData}`, 'error');
+        throw new Error(`MapTiler API Error: ${response.statusText}`);
     }
     
     const data = await response.json();
-    console.log('📊 MapTiler response:', data);
+    logDebug('MapTiler response received.', 'info');
     
     if (data.routes && data.routes.length > 0) {
         const route = data.routes[0];
@@ -488,11 +650,8 @@ async function tryMapTilerRouting(start, end, placeName) {
         if (route.geometry && route.geometry.coordinates) {
             // GeoJSON format - coordinates are [lng, lat], need to flip to [lat, lng]
             routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-        } else if (route.geometry && typeof route.geometry === 'string') {
-            // Polyline encoded format
-            routeCoords = decodePolyline(route.geometry);
         } else {
-            throw new Error('Invalid geometry format');
+            throw new Error('Invalid geometry format from MapTiler');
         }
         
         // Create route line on map
@@ -506,8 +665,8 @@ async function tryMapTilerRouting(start, end, placeName) {
         addDestinationMarker(end, placeName);
         fitMapToRoute(start, end);
         
-        const distance = route.distance ? Math.round(route.distance/1000) : 'Unknown';
-        showToast('✅ Route Ready', `${distance}km route via MapTiler`);
+        const distance = route.distance ? (route.distance / 1000).toFixed(1) : 'Unknown';
+        showToast('✅ Route Ready', `${distance}km walking route via MapTiler`);
         return true;
     }
     return false;
@@ -516,11 +675,13 @@ async function tryMapTilerRouting(start, end, placeName) {
 // Try OpenRouteService as fallback
 async function tryOpenRouteService(start, end, placeName) {
     try {
+        // Correctly formatted for OpenRouteService API
         const requestBody = {
             coordinates: [[start.lng, start.lat], [end.lng, end.lat]]
         };
         
-        const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
+        logDebug('OpenRouteService: Sending request...', 'info');
+        const response = await fetch('https://api.openrouteservice.org/v2/directions/foot-walking/geojson', {
             method: 'POST',
             headers: {
                 'Authorization': '5b3ce3597851110001cf6248d5e3e8ff7b3a42ed1e6e45c2b2dea8e7',
@@ -532,12 +693,12 @@ async function tryOpenRouteService(start, end, placeName) {
         
         if (!response.ok) {
             const errorData = await response.text();
-            console.log('OpenRouteService API Error:', errorData);
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            logDebug(`OpenRouteService API Error: HTTP ${response.status}. ${errorData}`, 'error');
+            throw new Error(`OpenRouteService API Error: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('📊 OpenRouteService response:', data);
+        logDebug('OpenRouteService response received.', 'info');
         
         if (data.features && data.features.length > 0) {
             const route = data.features[0];
@@ -555,12 +716,76 @@ async function tryOpenRouteService(start, end, placeName) {
             fitMapToRoute(start, end);
             
             const distance = route.properties.segments[0].distance;
-            showToast('✅ Route Ready', `${Math.round(distance/1000)}km route via OpenRouteService`);
+            showToast('✅ Route Ready', `${(distance / 1000).toFixed(1)}km walking route via OpenRouteService`);
             return true;
         }
         return false;
     } catch (error) {
-        console.log('OpenRouteService failed:', error.message);
+        console.error('OpenRouteService failed:', error.message);
+        throw error;
+    }
+}
+
+// Try GraphHopper as a new fallback
+async function tryGraphHopperRouting(start, end, placeName) {
+    const routeUrl = `https://graphhopper.com/api/1/route?point=${start.lat},${start.lng}&point=${end.lat},${end.lng}&profile=foot&calc_points=true&key=${GRAPHHOPPER_API_KEY}`;
+    logDebug(`GraphHopper URL: ${routeUrl}`, 'info');
+
+    try {
+        const response = await fetch(routeUrl);
+        if (!response.ok) {
+            const errorData = await response.json();
+            logDebug(`GraphHopper API Error: HTTP ${response.status}. ${errorData.message}`, 'error');
+            throw new Error(`GraphHopper API Error: ${errorData.message}`);
+        }
+
+        const data = await response.json();
+        logDebug('GraphHopper response received.', 'info');
+        logDebug(`GraphHopper data: ${JSON.stringify(data)}`, 'info');
+
+        if (data.paths && data.paths.length > 0) {
+            const path = data.paths[0];
+            
+            // GraphHopper returns encoded polylines, not direct coordinates
+            if (path.points) {
+                let routeCoords;
+                
+                if (path.points_encoded) {
+                    // Decode the polyline string
+                    logDebug('GraphHopper: Decoding polyline...', 'info');
+                    routeCoords = decodePolyline(path.points);
+                } else if (path.points.coordinates && Array.isArray(path.points.coordinates)) {
+                    // Direct coordinates (backup format)
+                    routeCoords = path.points.coordinates.map(coord => [coord[1], coord[0]]);
+                } else {
+                    throw new Error('Unknown GraphHopper points format');
+                }
+                
+                logDebug(`GraphHopper route coords count: ${routeCoords.length}`, 'info');
+
+                // Create route line on map
+                currentRoute = L.polyline(routeCoords, {
+                    color: '#50F588',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 5'
+                }).addTo(map);
+
+                addDestinationMarker(end, placeName);
+                fitMapToRoute(start, end);
+
+                const distance = (path.distance / 1000).toFixed(1);
+                showToast('✅ Route Ready', `${distance}km walking route via GraphHopper`);
+                logDebug('GraphHopper routing succeeded!', 'success');
+                return true;
+            } else {
+                logDebug('GraphHopper: No points found in response', 'error');
+                throw new Error('No route points from GraphHopper');
+            }
+        }
+        return false;
+    } catch (error) {
+        console.error('GraphHopper failed:', error.message);
         throw error;
     }
 }
@@ -608,33 +833,6 @@ function fitMapToRoute(start, end) {
     map.fitBounds(bounds, { padding: [50, 50] });
 }
 
-function showClearRouteButton() {
-    // Create or show clear route button
-    let clearBtn = document.getElementById('clearRouteBtn');
-    if (!clearBtn) {
-        clearBtn = document.createElement('button');
-        clearBtn.id = 'clearRouteBtn';
-        clearBtn.innerHTML = '❌ Clear Route';
-        clearBtn.style.cssText = `
-            position: fixed;
-            bottom: 160px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--danger-color);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: var(--border-radius);
-            font-weight: 600;
-            z-index: 1000;
-            cursor: pointer;
-        `;
-        clearBtn.onclick = clearRoute;
-        document.body.appendChild(clearBtn);
-    }
-    clearBtn.style.display = 'block';
-}
-
 function clearRoute() {
     if (currentRoute) {
         map.removeLayer(currentRoute);
@@ -643,11 +841,6 @@ function clearRoute() {
     if (destinationMarker) {
         map.removeLayer(destinationMarker);
         destinationMarker = null;
-    }
-    
-    const clearBtn = document.getElementById('clearRouteBtn');
-    if (clearBtn) {
-        clearBtn.style.display = 'none';
     }
     
     showToast('🗺️ Route Cleared', 'Route has been removed from the map');
@@ -720,4 +913,7 @@ function showToast(title, message) {
 }
 
 // Initialize the map when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', initMap);
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    initDebug();
+});
