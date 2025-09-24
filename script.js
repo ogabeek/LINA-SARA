@@ -793,12 +793,35 @@ Please monitor my location and contact authorities if needed!`;
     document.getElementById('shareTelegram').onclick = () => {
         logDebug('Starting Telegram emergency sharing with live location instructions...', 'info');
         
-        // Open Telegram with the enhanced emergency message
-        window.open(telegramUrl, '_blank');
-        document.body.removeChild(modal);
+        // Create Telegram-specific message with live location instructions
+        const telegramMessage = emergencyMessage.replace(
+            '⚠️ LIVE LOCATION SETUP:\n• Once in Telegram, tap the attachment icon (📎)\n• Select "Location" \n• Choose "Share Live Location"',
+            '⚠️ LIVE LOCATION SETUP:\n• Once in Telegram, tap the attachment icon (📎)\n• Select "Location"\n• Choose "Share Live Location"'
+        );
         
-        // Show comprehensive instructions toast
-        showToast('💙 Emergency + Live Location', 'Opening Telegram with emergency message and live location setup instructions...');
+        // Use Telegram's direct message URL format (similar to WhatsApp's wa.me)
+        // This opens Telegram app with contact selection, not just web share
+        const telegramUrlWithInstructions = `https://t.me/share/url?url=&text=${encodeURIComponent(telegramMessage)}`;
+        
+        // Try multiple URL formats for better app compatibility
+        const telegramAppUrl = `tg://msg?text=${encodeURIComponent(telegramMessage)}`;
+        
+        // First try the native app URL scheme
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = telegramAppUrl;
+        document.body.appendChild(iframe);
+        
+        // Fallback to web version after short delay if app doesn't open
+        setTimeout(() => {
+            window.open(telegramUrlWithInstructions, '_blank');
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+        }, 500);
+        
+        document.body.removeChild(modal);
+        showToast('💙 Emergency + Live Location', 'Opening Telegram with emergency message - select contact to share...');
         
         // Additional helpful information in debug
         logDebug('Emergency message includes live location setup instructions', 'info');
