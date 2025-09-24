@@ -394,12 +394,240 @@ function handleEmergencySOS() {
 }
 
 function handleShareLocation() {
+    logDebug('--- Share Location Clicked ---', 'title');
+    
     if (currentLocationMarker) {
         const latlng = currentLocationMarker.getLatLng();
-        showToast('📍 Location Shared', `Shared with trusted contacts: ${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`);
+        const lat = latlng.lat.toFixed(6);
+        const lng = latlng.lng.toFixed(6);
+        
+        logDebug(`Sharing location: [${lat}, ${lng}]`, 'info');
+        
+        // Create location sharing options
+        showLocationSharingOptions(lat, lng);
+        
     } else {
-        showToast('📍 Location Shared', 'Current location shared with trusted contacts');
+        showToast('📍 Getting Location', 'Please wait while we get your current location...');
+        logDebug('No location marker found, getting fresh location for sharing...', 'info');
+        
+        // Get current location first, then share
+        getCurrentLocationForSharing();
     }
+}
+
+// Get current location specifically for sharing
+function getCurrentLocationForSharing() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude.toFixed(6);
+                const lng = position.coords.longitude.toFixed(6);
+                
+                logDebug(`Fresh location for sharing: [${lat}, ${lng}]`, 'success');
+                updateCurrentLocationMarker([position.coords.latitude, position.coords.longitude]);
+                
+                // Show sharing options with fresh location
+                showLocationSharingOptions(lat, lng);
+            },
+            (error) => {
+                logDebug(`Location error for sharing: ${error.message}`, 'error');
+                showToast('❌ Location Error', 'Could not get your current location for sharing');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 30000
+            }
+        );
+    }
+}
+
+// Show location sharing options modal
+function showLocationSharingOptions(lat, lng) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        font-family: 'Sofia Sans', sans-serif;
+    `;
+    
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: var(--grey-900);
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-xl);
+        max-width: 350px;
+        width: 90%;
+        text-align: center;
+        border: 1px solid var(--grey-700);
+    `;
+    
+    // Google Maps link
+    const googleMapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+    
+    // Create emergency message
+    const emergencyMessage = `🚨 EMERGENCY LOCATION SHARE 🚨
+I'm sharing my current location for safety reasons.
+Please check on me!
+
+📍 My Location:
+https://maps.google.com/?q=${lat},${lng}
+
+Coordinates: ${lat}, ${lng}
+Shared at: ${new Date().toLocaleString()}`;
+    
+    // WhatsApp URLs
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(emergencyMessage)}`;
+    const whatsappWebUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(emergencyMessage)}`;
+    
+    modalContent.innerHTML = `
+        <h3 style="color: var(--white); margin-bottom: var(--spacing-lg);">
+            📍 Share Your Location
+        </h3>
+        <p style="color: var(--grey-300); margin-bottom: var(--spacing-lg); font-size: 14px;">
+            Your coordinates: ${lat}, ${lng}
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+            <button id="shareWhatsApp" style="
+                background: #25D366;
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: var(--border-radius);
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            ">
+                <i class="fab fa-whatsapp"></i>
+                Share via WhatsApp
+            </button>
+            
+            <button id="shareWhatsAppWeb" style="
+                background: #128C7E;
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: var(--border-radius);
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            ">
+                <i class="fab fa-whatsapp"></i>
+                Share via WhatsApp Web
+            </button>
+            
+            <button id="copyLocation" style="
+                background: var(--tertiary-400);
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: var(--border-radius);
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            ">
+                <i class="fas fa-copy"></i>
+                Copy Location Text
+            </button>
+            
+            <button id="openMaps" style="
+                background: var(--secondary-400);
+                color: var(--black);
+                border: none;
+                padding: 12px 20px;
+                border-radius: var(--border-radius);
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            ">
+                <i class="fas fa-map"></i>
+                Open in Google Maps
+            </button>
+        </div>
+        
+        <button id="closeModal" style="
+            background: transparent;
+            color: var(--grey-500);
+            border: none;
+            margin-top: var(--spacing-lg);
+            cursor: pointer;
+            font-size: 14px;
+        ">
+            Cancel
+        </button>
+    `;
+    
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Add event listeners
+    document.getElementById('shareWhatsApp').onclick = () => {
+        logDebug('Opening WhatsApp mobile app...', 'info');
+        window.open(whatsappUrl, '_blank');
+        document.body.removeChild(modal);
+        showToast('📱 WhatsApp', 'Opening WhatsApp with your location...');
+    };
+    
+    document.getElementById('shareWhatsAppWeb').onclick = () => {
+        logDebug('Opening WhatsApp Web...', 'info');
+        window.open(whatsappWebUrl, '_blank');
+        document.body.removeChild(modal);
+        showToast('� WhatsApp Web', 'Opening WhatsApp Web with your location...');
+    };
+    
+    document.getElementById('copyLocation').onclick = () => {
+        navigator.clipboard.writeText(emergencyMessage).then(() => {
+            logDebug('Location message copied to clipboard', 'success');
+            showToast('📋 Copied', 'Emergency location message copied to clipboard!');
+        }).catch(() => {
+            logDebug('Failed to copy to clipboard', 'error');
+            showToast('❌ Copy Failed', 'Could not copy to clipboard');
+        });
+        document.body.removeChild(modal);
+    };
+    
+    document.getElementById('openMaps').onclick = () => {
+        logDebug('Opening Google Maps...', 'info');
+        window.open(googleMapsUrl, '_blank');
+        document.body.removeChild(modal);
+        showToast('🗺️ Maps', 'Opening your location in Google Maps...');
+    };
+    
+    document.getElementById('closeModal').onclick = () => {
+        document.body.removeChild(modal);
+        logDebug('Location sharing cancelled', 'info');
+    };
+    
+    // Close modal when clicking outside
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+            logDebug('Location sharing cancelled (clicked outside)', 'info');
+        }
+    };
 }
 
 function handleFakeCall() {
@@ -604,7 +832,23 @@ async function createRoute(destLat, destLng, placeName) {
             }
         }
         
-        // Method 4: Simple straight-line route as final fallback
+        // Method 4: Try OSRM as HTTP-friendly fallback (before straight line)
+        if (!routeSuccess) {
+            logDebug('Trying OSRM routing (HTTP-friendly)...', 'info');
+            try {
+                routeSuccess = await tryOSRMRouting(start, end, placeName);
+                if (routeSuccess) {
+                    logDebug('OSRM routing succeeded.', 'success');
+                } else {
+                    logDebug('OSRM returned no route.', 'warning');
+                }
+            } catch (error) {
+                logDebug(`OSRM routing failed: ${error.message}`, 'error');
+                showToast('⚠️ OSRM Failed', 'Trying final fallback...');
+            }
+        }
+        
+        // Method 5: Simple straight-line route as final fallback
         if (!routeSuccess) {
             logDebug('Creating straight-line route as fallback.', 'warning');
             showToast('⚠️ Fallback Route', 'Could not find road route. Showing straight line.');
@@ -626,6 +870,10 @@ async function createRoute(destLat, destLng, placeName) {
 
 // Try MapTiler routing API for road-based navigation
 async function tryMapTilerRouting(start, end, placeName) {
+    // MapTiler should work on HTTP, but let's add debugging
+    const isSecure = location.protocol === 'https:';
+    logDebug(`MapTiler: Running on ${location.protocol} (HTTPS: ${isSecure})`, 'info');
+    
     // Use the 'walking' profile for pedestrian-focused routing
     const routeUrl = `https://api.maptiler.com/directions/walking/${start.lng},${start.lat};${end.lng},${end.lat}?key=${MAPTILER_API_KEY}&geometries=geojson&overview=full&steps=true`;
     logDebug(`MapTiler URL: ${routeUrl}`, 'info');
@@ -675,6 +923,14 @@ async function tryMapTilerRouting(start, end, placeName) {
 // Try OpenRouteService as fallback
 async function tryOpenRouteService(start, end, placeName) {
     try {
+        // Check if we're on HTTPS or localhost - ORS might require it
+        const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        
+        if (!isSecure) {
+            logDebug('OpenRouteService: Skipping due to HTTP deployment (needs HTTPS)', 'warning');
+            throw new Error('OpenRouteService requires HTTPS for production deployment');
+        }
+        
         // Correctly formatted for OpenRouteService API
         const requestBody = {
             coordinates: [[start.lng, start.lat], [end.lng, end.lat]]
@@ -728,6 +984,14 @@ async function tryOpenRouteService(start, end, placeName) {
 
 // Try GraphHopper as a new fallback
 async function tryGraphHopperRouting(start, end, placeName) {
+    // Check if we're on HTTPS or localhost - GraphHopper might require it
+    const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    
+    if (!isSecure) {
+        logDebug('GraphHopper: Skipping due to HTTP deployment (needs HTTPS)', 'warning');
+        throw new Error('GraphHopper requires HTTPS for production deployment');
+    }
+    
     const routeUrl = `https://graphhopper.com/api/1/route?point=${start.lat},${start.lng}&point=${end.lat},${end.lng}&profile=foot&calc_points=true&key=${GRAPHHOPPER_API_KEY}`;
     logDebug(`GraphHopper URL: ${routeUrl}`, 'info');
 
@@ -786,6 +1050,57 @@ async function tryGraphHopperRouting(start, end, placeName) {
         return false;
     } catch (error) {
         console.error('GraphHopper failed:', error.message);
+        throw error;
+    }
+}
+
+// Try OSRM as HTTP-friendly fallback routing service
+async function tryOSRMRouting(start, end, placeName) {
+    // OSRM Demo Server - works with HTTP
+    const routeUrl = `https://router.project-osrm.org/route/v1/foot/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
+    logDebug(`OSRM URL: ${routeUrl}`, 'info');
+
+    try {
+        const response = await fetch(routeUrl);
+        if (!response.ok) {
+            const errorData = await response.text();
+            logDebug(`OSRM API Error: HTTP ${response.status}. ${errorData}`, 'error');
+            throw new Error(`OSRM API Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        logDebug('OSRM response received.', 'info');
+
+        if (data.routes && data.routes.length > 0) {
+            const route = data.routes[0];
+            
+            if (route.geometry && route.geometry.coordinates) {
+                const routeCoords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                logDebug(`OSRM route coords count: ${routeCoords.length}`, 'info');
+
+                // Create route line on map
+                currentRoute = L.polyline(routeCoords, {
+                    color: '#50F588',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 5'
+                }).addTo(map);
+
+                addDestinationMarker(end, placeName);
+                fitMapToRoute(start, end);
+
+                const distance = (route.distance / 1000).toFixed(1);
+                const duration = Math.round(route.duration / 60);
+                showToast('✅ Route Ready', `${distance}km walking route (${duration}min) via OSRM`);
+                logDebug('OSRM routing succeeded!', 'success');
+                return true;
+            } else {
+                throw new Error('Invalid geometry format from OSRM');
+            }
+        }
+        return false;
+    } catch (error) {
+        logDebug(`OSRM failed: ${error.message}`, 'error');
         throw error;
     }
 }
